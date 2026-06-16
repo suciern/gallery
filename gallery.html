@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{
+            background:#0a0a0a;color:#fff;
+            font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif;
+            min-height:100vh;
+        }
+
+        /* Header */
+        .header{
+            padding:20px 20px 16px;border-bottom:1px solid #1a1a1a;
+            display:flex;align-items:center;justify-content:space-between;
+        }
+        .header-left h1{font-size:22px;font-weight:500;letter-spacing:-.3px}
+        .header-left .sub{font-size:12px;color:#555;margin-top:3px}
+        .header a{
+            color:#555;font-size:12px;text-decoration:none;letter-spacing:.5px;
+            border:1px solid #222;padding:6px 14px;border-radius:16px;transition:all .2s;
+        }
+        .header a:hover{color:#888;border-color:#444}
+
+        /* Toolbar */
+        .toolbar{
+            display:flex;align-items:center;gap:8px;padding:12px 20px;
+            border-bottom:1px solid #111;flex-wrap:wrap;
+        }
+        .toolbar .btn{
+            background:#151515;color:#666;border:1px solid #222;padding:6px 14px;
+            border-radius:14px;font-size:12px;cursor:pointer;transition:all .15s;
+            white-space:nowrap;
+        }
+        .toolbar .btn:hover{color:#aaa;border-color:#444}
+        .toolbar .btn.danger:hover{color:#e55;border-color:#e55}
+        .toolbar .btn.active{color:#fff;border-color:#555;background:#222}
+        .toolbar .spacer{flex:1}
+        .toolbar .count{font-size:12px;color:#444}
+
+        /* Grid */
+        .grid{
+            display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+            gap:3px;padding:3px;
+        }
+        .card{
+            position:relative;aspect-ratio:1;overflow:hidden;cursor:pointer;
+            background:#111;transition:opacity .2s;
+        }
+        .card:hover{opacity:.85}
+        .card img{width:100%;height:100%;object-fit:cover;display:block}
+        .card .overlay{
+            position:absolute;bottom:0;left:0;right:0;
+            background:linear-gradient(transparent,rgba(0,0,0,.7));
+            padding:24px 8px 8px;font-size:10px;color:#999;
+        }
+        .card .check{
+            position:absolute;top:8px;left:8px;width:22px;height:22px;
+            border-radius:50%;border:2px solid rgba(255,255,255,.35);
+            background:rgba(0,0,0,.4);cursor:pointer;transition:all .15s;
+            display:flex;align-items:center;justify-content:center;
+        }
+        .card .check.checked{background:#fff;border-color:#fff}
+        .card .check.checked::after{content:'✓';color:#000;font-size:12px;font-weight:700}
+
+        /* Modal */
+        .modal{
+            position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:100;
+            display:none;flex-direction:column;align-items:center;justify-content:center;
+        }
+        .modal.open{display:flex}
+        .modal img{max-width:92vw;max-height:75vh;object-fit:contain;border-radius:2px}
+        .modal .info{
+            text-align:center;padding:14px 0 0;color:#666;font-size:12px;
+        }
+        .modal .actions{display:flex;gap:10px;margin-top:14px}
+        .modal .actions button{
+            background:#181818;color:#888;border:1px solid #222;padding:8px 22px;
+            border-radius:16px;font-size:12px;cursor:pointer;transition:all .15s;
+        }
+        .modal .actions button:hover{color:#fff;border-color:#555}
+        .modal .actions button.dl:hover{color:#fff;border-color:#fff}
+        .modal .actions button.del:hover{color:#e55;border-color:#e55}
+        .modal .close{
+            position:absolute;top:16px;right:18px;background:none;border:none;
+            color:#555;font-size:28px;cursor:pointer;transition:color .15s;
+        }
+        .modal .close:hover{color:#fff}
+        .modal .nav{
+            position:absolute;top:50%;transform:translateY(-50%);
+            background:none;border:none;color:#444;font-size:36px;cursor:pointer;
+            transition:color .15s;padding:20px;
+        }
+        .modal .nav:hover{color:#888}
+        .modal .nav.prev{left:0}
+        .modal .nav.next{right:0}
+
+        /* Empty */
+        .empty{
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            height:60vh;color:#333;
+        }
+        .empty .icon{font-size:48px;margin-bottom:16px;opacity:.5}
+        .empty p{font-size:14px;margin-bottom:8px}
+        .empty a{color:#555;font-size:13px;text-decoration:none;border-bottom:1px solid #333}
+        .empty a:hover{color:#888}
+
+        /* Responsive */
+        @media(max-width:400px){
+            .grid{grid-template-columns:repeat(2,1fr)}
+        }
+        @media(min-width:768px){
+            .grid{grid-template-columns:repeat(4,1fr)}
+        }
+        @media(min-width:1024px){
+            .grid{grid-template-columns:repeat(5,1fr)}
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <h1>Gallery</h1>
+        <div class="sub" id="stats">—</div>
+    </div>
+</div>
+
+<div class="toolbar" id="toolbar">
+    <button class="btn" id="btnSelect">选择</button>
+    <button class="btn" id="btnAll">全选</button>
+    <button class="btn dl" id="btnDlSelected" style="display:none">下载选中</button>
+    <button class="btn danger" id="btnDelSelected" style="display:none">删除选中</button>
+    <div class="spacer"></div>
+    <button class="btn" id="btnSort">↓ 最新</button>
+    <span class="count" id="selCount"></span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="empty" id="empty" style="display:none">
+    <div class="icon">📷</div>
+    <p>还没有照片</p>
+    <a href="index.html">去计算器页面拍摄 →</a>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal">
+    <button class="close" id="mClose">×</button>
+    <button class="nav prev" id="mPrev">‹</button>
+    <img id="mImg" src="" alt="">
+    <button class="nav next" id="mNext">›</button>
+    <div class="info" id="mInfo"></div>
+    <div class="actions">
+        <button class="dl" id="mDl">下载</button>
+        <button class="del" id="mDel">删除</button>
+    </div>
+</div>
+
+<script>
+const DB='CamCapDB',ST='photos';
+let photos=[],selected=new Set(),sortNewest=true,modalIdx=-1;
+
+function openDB(){
+    return new Promise((ok,no)=>{
+        const r=indexedDB.open(DB,1);
+        r.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains(ST))db.createObjectStore(ST,{keyPath:'id',autoIncrement:true}).createIndex('ts','timestamp',{unique:false})};
+        r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);
+    });
+}
+
+async function loadPhotos(){
+    const db=await openDB();
+    return new Promise((ok,no)=>{
+        const tx=db.transaction(ST,'readonly');const s=tx.objectStore(ST);
+        const req=s.getAll();req.onsuccess=()=>ok(req.result);req.onerror=()=>no(req.error);
+    });
+}
+
+async function deletePhoto(id){
+    const db=await openDB();
+    return new Promise((ok,no)=>{
+        const tx=db.transaction(ST,'readwrite');tx.objectStore(ST).delete(id);
+        tx.oncomplete=()=>ok();tx.onerror=()=>no(tx.error);
+    });
+}
+
+function render(){
+    const grid=document.getElementById('grid');
+    const empty=document.getElementById('empty');
+    const stats=document.getElementById('stats');
+
+    if(!photos.length){
+        grid.style.display='none';empty.style.display='flex';
+        stats.textContent='0 张照片';return;
+    }
+    grid.style.display='grid';empty.style.display='none';
+
+    const sorted=[...photos].sort((a,b)=>sortNewest?b.timestamp-a.timestamp:a.timestamp-b.timestamp);
+    const totalKB=Math.round(photos.reduce((s,p)=>s+p.photoData.length*0.75,0)/1024);
+    const sizeStr=totalKB>1024?(totalKB/1024).toFixed(1)+' MB':totalKB+' KB';
+    stats.textContent=photos.length+' 张照片 · '+sizeStr;
+
+    grid.innerHTML='';
+    sorted.forEach((p,i)=>{
+        const card=document.createElement('div');card.className='card';
+        card.innerHTML=`
+            <img src="${p.photoData}" loading="lazy" alt="">
+            <div class="overlay">${p.date}</div>
+            <div class="check ${selected.has(p.id)?'checked':''}" data-id="${p.id}"></div>
+        `;
+        // Click image to view
+        card.querySelector('img').addEventListener('click',()=>{
+            modalIdx=i;openModal(sorted);
+        });
+        // Click checkbox
+        card.querySelector('.check').addEventListener('click',e=>{
+            e.stopPropagation();
+            if(selected.has(p.id))selected.delete(p.id);else selected.add(p.id);
+            card.querySelector('.check').classList.toggle('checked',selected.has(p.id));
+            updSelUI();
+        });
+        grid.appendChild(card);
+    });
+
+    updSelUI();
+}
+
+function updSelUI(){
+    const cnt=document.getElementById('selCount');
+    const dlBtn=document.getElementById('btnDlSelected');
+    const delBtn=document.getElementById('btnDelSelected');
+    const n=selected.size;
+    cnt.textContent=n?`已选 ${n}`:'';
+    dlBtn.style.display=n?'':'none';
+    delBtn.style.display=n?'':'none';
+}
+
+/* Modal */
+function openModal(sorted){
+    const m=document.getElementById('modal');
+    const img=document.getElementById('mImg');
+    const info=document.getElementById('mInfo');
+    const p=sorted[modalIdx];
+    img.src=p.photoData;
+    info.textContent=p.date;
+    m.classList.add('open');
+    document.getElementById('mPrev').style.visibility=modalIdx>0?'visible':'hidden';
+    document.getElementById('mNext').style.visibility=modalIdx<sorted.length-1?'visible':'hidden';
+    // Store current sorted ref for navigation
+    m._sorted=sorted;
+}
+document.getElementById('mClose').addEventListener('click',()=>{
+    document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('modal').addEventListener('click',e=>{
+    if(e.target===e.currentTarget)document.getElementById('modal').classList.remove('open');
+});
+document.getElementById('mPrev').addEventListener('click',()=>{
+    if(modalIdx>0){modalIdx--;openModal(document.getElementById('modal')._sorted)}
+});
+document.getElementById('mNext').addEventListener('click',()=>{
+    const s=document.getElementById('modal')._sorted;
+    if(modalIdx<s.length-1){modalIdx++;openModal(s)}
+});
+document.getElementById('mDl').addEventListener('click',()=>{
+    const s=document.getElementById('modal')._sorted;const p=s[modalIdx];
+    const a=document.createElement('a');
+    a.href=p.photoData;a.download='photo_'+p.timestamp+'.jpg';a.click();
+});
+document.getElementById('mDel').addEventListener('click',async()=>{
+    const s=document.getElementById('modal')._sorted;const p=s[modalIdx];
+    if(!confirm('确定删除这张照片？'))return;
+    await deletePhoto(p.id);selected.delete(p.id);
+    document.getElementById('modal').classList.remove('open');
+    photos=await loadPhotos();render();
+});
+
+/* Toolbar */
+const selectMode={on:false};
+document.getElementById('btnSelect').addEventListener('click',function(){
+    selectMode.on=!selectMode.on;
+    this.classList.toggle('active',selectMode.on);
+    if(!selectMode.on){selected.clear();render()}
+});
+document.getElementById('btnAll').addEventListener('click',()=>{
+    photos.forEach(p=>selected.add(p.id));render();
+});
+document.getElementById('btnSort').addEventListener('click',function(){
+    sortNewest=!sortNewest;
+    this.textContent=sortNewest?'↓ 最新':'↑ 最早';
+    render();
+});
+document.getElementById('btnDlSelected').addEventListener('click',()=>{
+    photos.filter(p=>selected.has(p.id)).forEach(p=>{
+        const a=document.createElement('a');
+        a.href=p.photoData;a.download='photo_'+p.timestamp+'.jpg';
+        setTimeout(()=>a.click(),100);
+    });
+});
+document.getElementById('btnDelSelected').addEventListener('click',async()=>{
+    if(!confirm(`确定删除选中的 ${selected.size} 张照片？`))return;
+    for(const id of selected){await deletePhoto(id)}
+    selected.clear();
+    photos=await loadPhotos();render();
+});
+
+/* Keyboard navigation in modal */
+document.addEventListener('keydown',e=>{
+    const m=document.getElementById('modal');
+    if(!m.classList.contains('open'))return;
+    if(e.key==='ArrowLeft')document.getElementById('mPrev').click();
+    else if(e.key==='ArrowRight')document.getElementById('mNext').click();
+    else if(e.key==='Escape')m.classList.remove('open');
+});
+
+/* Init */
+window.addEventListener('load',async()=>{
+    photos=await loadPhotos();render();
+});
+</script>
+</body>
+</html>
